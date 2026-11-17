@@ -15,209 +15,80 @@ library(cowplot)
 library(forcats)
 
 # read in data
-asvs.091726 <- read.csv(here("CalEMP-091726-data", "exported", "ASV_CalEMP_091726.csv"))
-asvs.testplate <- read.csv(here("CalEMP-Fall2024-testplate", "exported", "table_mifish_EMPA_test.csv")) # these samples were combined into 070726 dataset
-asvs.070726 <- read.csv(here("CalEMP-070726-data", "exported", "table_mifish_CalEMP_070726.csv"))
-asvs.093026 <- read.csv(here("CalEMP-093026-data", "exported_12S", "ASV_CalEMP_093026.csv")) # taxonomy assigned using normal 12S db
-asvs.093026_newref <- read.csv(here("CalEMP-093026-data", "exported_newref", "table_mifish_CalEMP_093026_newref.csv")) #taxonomy assigned using eDNA explorer 12S db
+#asvs.091726 <- read.csv(here("CalEMP-091726-data", "exported", "ASV_CalEMP_091726.csv"))
+#asvs.testplate <- read.csv(here("CalEMP-Fall2024-testplate", "exported", "table_mifish_EMPA_test.csv")) # these samples were combined into 070726 dataset
+#asvs.070726 <- read.csv(here("CalEMP-070726-data", "exported", "table_mifish_CalEMP_070726.csv"))
+#asvs.093026 <- read.csv(here("CalEMP-093026-data", "exported_12S", "ASV_CalEMP_093026.csv")) # taxonomy assigned using normal 12S db
+#asvs.093026_newref <- read.csv(here("CalEMP-093026-data", "exported_newref", "table_mifish_CalEMP_093026_newref.csv")) #taxonomy assigned using eDNA explorer 12S db
 
 # read in re-run combined data 
-asvs.combined.mitohelper <- read.csv(here("CalEMP-combined-data", "exported_mitohelper", "table_mitohelper.csv")) # taxonomy assigned with MitoHelper db
-asvs.combined.rcrux <- read.csv(here("CalEMP-combined-data", "exported_rcrux", "table_rcrux.csv")) #taxonomy assigned with 12S RCrux (Patin et al 2022)
-asvs.consensus <- read.csv(here("CalEMP-combined-data", "asv.combined.blast.csv")) #taxonomy run through BLAST, compared, and consensus reached
+#asvs.combined.mitohelper <- read.csv(here("CalEMP-combined-data", "exported_mitohelper", "table_mitohelper.csv")) # taxonomy assigned with MitoHelper db
+#asvs.combined.rcrux <- read.csv(here("CalEMP-combined-data", "exported_rcrux", "table_rcrux.csv")) #taxonomy assigned with 12S RCrux (Patin et al 2022)
+asvs.consensus <- read.csv(here("CalEMP-combined-data", "asv_table_all.csv")) #taxonomy run through BLAST, compared, and consensus reached
   
 # new inventory - excel tracking program
 
 # sample inventory
-sample.inventory <- read.csv(here("samples_received_9.23.26.csv"))
-samples.received <- n_distinct(sample.inventory$samples.received)
-total.samples <- n_distinct(sample.inventory$masterInventory)
-samples.remaining <- total.samples - samples.received
 
-print(samples.received)
-print(total.samples)
-
-sample.list <- names(asvs.combined.mitohelper)
+sample.list <- names(asvs.consensus)
 sample.list 
 
-no.data.list <- c("EB 9-29-25",
-                  "NC-TEN_2_241113_SR_1",
-                  "SC-BAT_1_240912_SR_2",
-                  "CC-CAR_2_251013_SR_3",
-                  "CC-CAR_3_251013_SR_2",
-                  "CC-ELK_1_251103_SR_1",
-                  "CC-MCS_1_251006_SR_1",
-                  "CC-MCS_1_251006_SR_2",
-                  "CC-MCS_1_251006_SR_3",
-                  "CC-MCS_2_251006_SR_1",
-                  "CC-MCS_2_251006_SR_2",
-                  "CC-MCS_3_251006_SR_1",
-                  "CC-MCS_3_251006_SR_2",
-                  "CC-MCS_3_251006_SR_3",
-                  "CC-MOR_1_251021_SR_1",
-                  "CC-ADLC_1_251022_SR_3",
-                  "CC-MCS_1_251006_SR_FB")
 
-no.band.list <- c("NC-TEN_1_241113_SR_FB",
-                  "CC-PAJ_3_251027_SR_3",
-                  "EB2 4-22-26",
-                  "SC-VEN_2_251031_SR_FB")
-
-match <- retrieved %in% sample.list
-
-retrieved <- c("CC-CAR_2_251013_SR_3",
-               "CC-CAR_3_251013_SR_2",
-               "CC-ELK_1_251103_SR_1","CC-MCS_1_251006_SR_1",
-               "CC-MCS_1_251006_SR_2",
-               "CC-MCS_1_251006_SR_3","CC-MCS_2_251006_SR_2", "CC-MCS_3_251006_SR_1",
-               "CC-MCS_3_251006_SR_2",
-               "CC-MCS_3_251006_SR_3", "CC-MOR_1_251021_SR_1", "CC-ADLC_1_251022_SR_3", "CC-MCS_1_251006_SR_FB"
-               )
 
 ################################################
-# stats: percent total reads assigned per dataset ----
-## testplate dataset
+#  percent total reads assigned to some level for entire dataset ----
 
-# collapse identical ASVs - reuse this function
-reads.per.CL.testplate <- asvs.testplate %>%
-  group_by(ConsensusLineage) %>%
+# collapse identical ASVs - reuse this function - for the converged Consensus Lineage
+reads.per.CL <- asvs.consensus %>%
+  group_by(ConsensusLineage_converge) %>%
   summarise(across(where(is.numeric), sum),
             .groups = "drop")
 
 ## reads across whole dataset
-total.reads.testplate <- sum(reads.per.CL.testplate %>% select(where(is.numeric)), na.rm = TRUE)
+total.reads <- sum(reads.per.CL %>% select(where(is.numeric)), na.rm = TRUE)
 
 # assigned reads 
-assigned.reads.testplate <-reads.per.CL.testplate %>%
-  filter(ConsensusLineage != "Unassigned") %>%
+assigned.reads <-reads.per.CL %>%
+  filter(ConsensusLineage_converge != "Unassigned") %>%
   select(where(is.numeric)) %>%
   sum(na.rm = TRUE)
 
 # percent unassigned
-perc.assigned.testplate <- 100*(assigned.reads.testplate)/total.reads.testplate
+perc.assigned <- 100*(assigned.reads)/total.reads
 
-# print stats - testplate - 87.91%
-print(perc.assigned.testplate)
+# print stats - 96.86%
+print(perc.assigned)
 
-## 070726 dataset
+# perc assigned to species
+assigned.to.species.conv <- comb %>% filter(!is.na(Species_conv)) %>%
+  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
 
-# collapse identical ASVs - reuse this function
-reads.per.CL.070726 <- asvs.070726 %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-## reads across whole dataset
-total.reads.070726 <- sum(reads.per.CL.070726 %>% select(where(is.numeric)), na.rm = TRUE)
-
-# unassigned reads 
-assigned.reads.070726 <-reads.per.CL.070726 %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-# percent unassigned
-perc.assigned.070726 <- 100*(assigned.reads.070726)/total.reads.070726
-
-# print stats - 070726 - 96.03%
-print(perc.assigned.070726)
-
-##################
-## 091726 dataset
-
-# collapse identical ASVs - reuse this function
-reads.per.CL.091726 <- asvs.091726 %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-## reads across whole dataset
-total.reads.091726 <- sum(reads.per.CL.091726 %>% select(where(is.numeric)), na.rm = TRUE)
-
-# unassigned reads 
-assigned.reads.091726 <-reads.per.CL.091726 %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-# percent unassigned
-perc.assigned.091726 <- 100*(assigned.reads.091726)/total.reads.091726
-
-# print stats - 091726 - 92.42%
-print(perc.assigned.091726)
-
-################################
-## 093026 dataset
-
-# collapse identical ASVs - reuse this function
-reads.per.CL.093026 <- asvs.093026 %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-## reads across whole dataset
-total.reads.093026 <- sum(reads.per.CL.093026 %>% select(where(is.numeric)), na.rm = TRUE)
-
-# unassigned reads 
-assigned.reads.093026 <-reads.per.CL.093026 %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-# percent unassigned
-perc.assigned.093026 <- 100*(assigned.reads.093026)/total.reads.093026
-
-# print stats - 093026 - 96.16 %
-print(perc.assigned.093026)
-
-################################
-## 093026 - NEWREF dataset - 
-
-# collapse identical ASVs - reuse this function
-reads.per.CL.093026_newref <- asvs.093026_newref %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-## reads across whole dataset
-total.reads.093026_newref <- sum(reads.per.CL.093026_newref %>% select(where(is.numeric)), na.rm = TRUE)
-
-# unassigned reads 
-assigned.reads.093026_newref <-reads.per.CL.093026_newref %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-# percent unassigned
-perc.assigned.093026_newref <- 100*(assigned.reads.093026_newref)/total.reads.093026_newref
-
-# print stats - 093026 NEWREF - 73.54 %
-print(perc.assigned.093026_newref)
-
-# almost identical percent reads assigned to some level for the two different 12S databases
+perc.assigned.to.sp.conv <- 100*(assigned.to.species.conv/assigned.reads)
+perc.assigned.to.sp.conv # 65.49%
 
 
 ###################################################
 
-#### Compare standard 12S ref database to eDNA explorer ref db ----
-# use 093017 samples as a test for this - both assigned at a 95% identity threshold #
+#### Compare three 12S reference databases:  RCrux, MitoHelper and eDNA explorer----
 
 #  what percentage of ASVs were assigned to species by each database
 
 # join two datasets and collapse Unassigned ASVs into one row
-comb_093026 <- asvs.093026 %>% full_join(asvs.093026_newref %>% select(OTU.ID, ConsensusLineage), by = "OTU.ID") %>%
-  rename(ConsensusLineage.12S = ConsensusLineage.x) %>%
-  rename(ConsensusLineage.EE = ConsensusLineage.y) %>%
+comb <- asvs.consensus %>% 
+  rename(ConsensusLineage.rcrux = ConsensusLineage_rcrux) %>%
+  rename(ConsensusLineage.EE = ConsensusLineage_explore) %>%
+  rename(ConsensusLineage.mito = ConsensusLineage_mitohelper) %>%
+  rename(ConsensusLineage.conv = ConsensusLineage_converge) %>%
   separate(
-    ConsensusLineage.12S,
-    into = c("Domain_12S", "Phylum_12S", "Class_12S", "Order_12S",
-             "Family_12S", "Genus_12S", "Species_12S"),
+    ConsensusLineage.rcrux,
+    into = c("Domain_rcrux", "Phylum_rcrux", "Class_rcrux", "Order_rcrux",
+             "Family_rcrux", "Genus_rcrux", "Species_rcrux"),
     sep = ";\\s*",
     remove = FALSE
   ) %>%
   mutate(
     across(
-      c(Domain_12S, Phylum_12S, Class_12S, Order_12S, Family_12S, Genus_12S, Species_12S),
+      c(Domain_rcrux, Phylum_rcrux, Class_rcrux, Order_rcrux, Family_rcrux, Genus_rcrux, Species_rcrux),
       ~ sub("^[a-z]__", "", .x)
     )
   ) %>%
@@ -233,39 +104,7 @@ comb_093026 <- asvs.093026 %>% full_join(asvs.093026_newref %>% select(OTU.ID, C
       c(Domain_EE, Phylum_EE, Class_EE, Order_EE, Family_EE, Genus_EE, Species_EE),
       ~ sub("^[a-z]__", "", .x)
     )
-  )
-
-# assigned to species by each database
-assigned.to.species.12S <- comb_093026 %>% filter(!is.na(Species_12S)) %>% 
-  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
-
-assigned.to.species.EE <- comb_093026 %>% filter(!is.na(Species_EE)) %>%
-  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
-
-#total assigned reads (from above)
-assigned.reads.093026
-assigned.reads.093026_newref
-
-# percent 12S assigned to species - 44.56%
-perc.assigned.to.sp.12S <- 100*(assigned.to.species.12S/assigned.reads.093026)
-perc.assigned.to.sp.12S
-
-# percent EE assigned to species - 69.54% (out of an initial 73% of total receiving any assignment)
-per.assigned.to.sp.EE <- 100*(assigned.to.species.EE/ assigned.reads.093026_newref)
-per.assigned.to.sp.EE
-
-
-# compare MitoHelper database to RCrux 
-# combine, compare assignment
-#### Compare MitoHelper ref database to RCrux ref db ----
-#  all samples - both assigned at a 95% identity threshold #
-
-#  what percentage of ASVs were assigned to species by each database
-
-# join two datasets and collapse Unassigned ASVs into one row
-comb_dbs <- asvs.combined.mitohelper %>% full_join(asvs.combined.rcrux %>% select(OTU.ID, ConsensusLineage), by = "OTU.ID") %>%
-  rename(ConsensusLineage.mito = ConsensusLineage.x) %>%
-  rename(ConsensusLineage.rcrux = ConsensusLineage.y) %>%
+  ) %>%
   separate(
     ConsensusLineage.mito,
     into = c("Domain_mito", "Phylum_mito", "Class_mito", "Order_mito",
@@ -280,89 +119,7 @@ comb_dbs <- asvs.combined.mitohelper %>% full_join(asvs.combined.rcrux %>% selec
     )
   ) %>%
   separate(
-    ConsensusLineage.rcrux,
-    into = c("Domain_rcrux", "Phylum_rcrux", "Class_rcrux", "Order_rcrux",
-             "Family_rcrux", "Genus_rcrux", "Species_rcrux"),
-    sep = ";\\s*",
-    remove = FALSE
-  ) %>%
-  mutate(
-    across(
-      c(Domain_rcrux, Phylum_rcrux, Class_rcrux, Order_rcrux, Family_rcrux, Genus_rcrux, Species_rcrux),
-      ~ sub("^[a-z]__", "", .x)
-    )
-  )
-
-# assigned to species by each database
-assigned.to.species.mito <- comb_dbs %>% filter(!is.na(Species_mito)) %>% 
-  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
-
-assigned.to.species.rcrux <- comb_dbs %>% filter(!is.na(Species_rcrux)) %>%
-  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
-
-# collapse identical ASVs - reuse this function
-reads.per.CL.mito <- asvs.combined.mitohelper %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-reads.per.CL.rcrux <- asvs.combined.rcrux %>%
-  group_by(ConsensusLineage) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-## reads across whole dataset
-total.reads.combined <- sum(reads.per.CL.mito %>% select(where(is.numeric)), na.rm = TRUE)
-
-#total assigned reads 
-assigned.reads.mito <-reads.per.CL.mito %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-assigned.reads.rcrux <-reads.per.CL.rcrux %>%
-  filter(ConsensusLineage != "Unassigned") %>%
-  select(where(is.numeric)) %>%
-  sum(na.rm = TRUE)
-
-# percent MitoHelper assigned to species - 42.38% (out of total reads assigned overall)
-perc.assigned.to.sp.mito <- 100*(assigned.to.species.mito/assigned.reads.mito)
-perc.assigned.to.sp.mito
-
-# percent EE assigned to species - 42.41% (out of an initial 73% of total receiving any assignment)
-per.assigned.to.sp.rcrux <- 100*(assigned.to.species.rcrux/ assigned.reads.rcrux)
-per.assigned.to.sp.rcrux
-
-# commbined datasets 
-asvs.consensus.sep <- asvs.consensus %>%
-separate(
-  ConsensusLineage_mitohelper,
-  into = c("Domain_mito", "Phylum_mito", "Class_mito", "Order_mito",
-           "Family_mito", "Genus_mito", "Species_mito"),
-  sep = ";\\s*",
-  remove = FALSE
-) %>%
-  mutate(
-    across(
-      c(Domain_mito, Phylum_mito, Class_mito, Order_mito, Family_mito, Genus_mito, Species_mito),
-      ~ sub("^[a-z]__", "", .x)
-    )
-  ) %>%
-  separate(
-    ConsensusLineage_rcrux,
-    into = c("Domain_rcrux", "Phylum_rcrux", "Class_rcrux", "Order_rcrux",
-             "Family_rcrux", "Genus_rcrux", "Species_rcrux"),
-    sep = ";\\s*",
-    remove = FALSE
-  ) %>%
-  mutate(
-    across(
-      c(Domain_rcrux, Phylum_rcrux, Class_rcrux, Order_rcrux, Family_rcrux, Genus_rcrux, Species_rcrux),
-      ~ sub("^[a-z]__", "", .x)
-    )
-  ) %>%
-  separate(
-    ConsensusLineage_combined,
+    ConsensusLineage.conv,
     into = c("Domain_conv", "Phylum_conv", "Class_conv", "Order_conv",
              "Family_conv", "Genus_conv", "Species_conv"),
     sep = ";\\s*",
@@ -373,108 +130,128 @@ separate(
       c(Domain_conv, Phylum_conv, Class_conv, Order_conv, Family_conv, Genus_conv, Species_conv),
       ~ sub("^[a-z]__", "", .x)
     )
-  ) %>%
-  relocate(ConsensusLineage_combined, Domain_conv, Phylum_conv, Class_conv, Order_conv, Family_conv, Genus_conv, Species_conv)
+  )
 
+
+
+#### Compare MitoHelper, eDNA Explorer and RCrux ref db ----
+#  all samples - both assigned at a 97% identity threshold #
+
+#  what percentage of ASVs were assigned to species by each database
+# assigned to species by each database
+assigned.to.species.rcrux <- comb %>% filter(!is.na(Species_rcrux)) %>% 
+  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
+
+assigned.to.species.EE <- comb %>% filter(!is.na(Species_EE)) %>%
+  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
+
+assigned.to.species.mito <- comb %>% filter(!is.na(Species_mito)) %>%
+  summarise(across(where(is.numeric), sum), .groups = "drop") %>% sum()
+
+
+# assigned reads from each dataset with reads collapsed per consensus lineage
+reads.per.CL.rcrux <- comb %>%
+  group_by(ConsensusLineage.rcrux) %>%
+  summarise(across(where(is.numeric), sum),
+            .groups = "drop")
+
+reads.per.CL.EE <- comb %>%
+  group_by(ConsensusLineage.EE) %>%
+  summarise(across(where(is.numeric), sum),
+            .groups = "drop")
+
+reads.per.CL.mito <- comb %>%
+  group_by(ConsensusLineage.mito) %>%
+  summarise(across(where(is.numeric), sum),
+            .groups = "drop")
+
+
+#total assigned reads by each dataset
+assigned.reads.rcrux <-reads.per.CL.rcrux %>%
+  filter(ConsensusLineage.rcrux != "Unassigned") %>%
+  select(where(is.numeric)) %>%
+  sum(na.rm = TRUE)
+
+assigned.reads.EE <-reads.per.CL.EE %>%
+  filter(ConsensusLineage.EE != "Unassigned") %>%
+  select(where(is.numeric)) %>%
+  sum(na.rm = TRUE)
+
+assigned.reads.mito <-reads.per.CL.mito %>%
+  filter(ConsensusLineage.mito != "Unassigned") %>%
+  select(where(is.numeric)) %>%
+  sum(na.rm = TRUE)
+
+
+# percent assigned to species for each database
+perc.assigned.to.sp.mito <- 100*(assigned.to.species.mito/assigned.reads.mito)
+perc.assigned.to.sp.mito # 56.02%
+
+perc.assigned.to.sp.EE <- 100*(assigned.to.species.EE/assigned.reads.EE)
+perc.assigned.to.sp.EE # 42.79%
+
+perc.assigned.to.sp.rcrux <- 100*(assigned.to.species.rcrux/assigned.reads.rcrux)
+perc.assigned.to.sp.rcrux # 58.42%
+
+comb_final <- comb %>%
+  select(-c(ConsensusLineage.EE, ConsensusLineage.rcrux, ConsensusLineage.mito, Domain_EE, Phylum_EE, Class_EE, Order_EE, Family_EE, Genus_EE, Species_EE,
+            Domain_mito, Phylum_mito, Class_mito, Order_mito, Family_mito, Genus_mito, Species_mito, Domain_rcrux, Phylum_rcrux, Class_rcrux,
+            Order_rcrux, Family_rcrux, Genus_rcrux, Species_rcrux, total_reads)) %>%
+  relocate(ConsensusLineage.conv, Domain_conv, Phylum_conv, Class_conv, Order_conv, Family_conv, Genus_conv, Species_conv) %>%
+  filter(Class_conv == "Actinopteri" | is.na(Class_conv)) %>%
+  group_by(ConsensusLineage.conv) %>%
+  summarise(
+    across(
+      c(Domain_conv, Phylum_conv, Class_conv, Order_conv,
+        Family_conv, Genus_conv, Species_conv),
+      ~ first(.x)
+    ),
+    across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+# write out final table with converged ConsensusLineage only
 write.csv(asvs.consensus.sep, here("processed", "asv.table.FINAL.csv"))
 
 # visualize using a Sankey diagram at each taxonomic level: ASVs 
-########## we'll stop analysis here since there was a clear winner in which database assigned more reads overall
-  
+
 # what percent of total ASVs were assigned to species?
 # for the ASVs assigned to different levels by different databases:
   # (a) how many agreed?
   # (b) how many were assigned lower by (i) 12S usual and (ii) eDNA explorer db?
   # (c) list of taxa coverage done better by each db
 
-####
-# wrangle datasets together ----
-# combine ASV tables
-combined <- asvs.070726 %>%
-  full_join(asvs.091726 %>% select(-ConsensusLineage),
-            by = "OTU.ID") %>%
-  full_join(asvs.093026 %>% select(-ConsensusLineage),
-            by = "OTU.ID")
-
-sample.bind <- bind_rows(asvs.093026, asvs.091726, asvs.070726) %>%
-  mutate(across(where(is.numeric), ~ replace(.x, is.na(.x), 0)))
-
-combined_asv_table <- sample.bind %>%
-  separate(
-  ConsensusLineage,
-  into = c("Domain", "Phylum", "Class", "Order",
-           "Family", "Genus", "Species"),
-  sep = ";\\s*",
-  remove = FALSE
-) %>%
-  mutate(
-    across(
-      c(Domain, Phylum, Class, Order, Family, Genus, Species),
-      ~ sub("^[a-z]__", "", .x)
-    )
-  ) %>%
-  select(ConsensusLineage, Domain, Phylum, Class, Order, Family, Genus, Species, everything())
-combined_asv_table
-
-# write out processed data - BLAST unknowns, combine lineages, read back in
-write.csv(combined_asv_table, here("processed", "combined_asv_calemp.csv"))
-write.csv(comb_dbs, here("processed", "combined_asv_table_refdb.csv"))
-
-# collapse ASVs by ConsensusLineage
-collapsed <- asvs.consensus.sep %>%
-  group_by(ConsensusLineage_combined) %>%
-  select(-c(Domain_rcrux, Phylum_rcrux, Class_rcrux, Order_rcrux, Family_rcrux, Genus_rcrux, Species_rcrux, ConsensusLineage_rcrux,
-            ConsensusLineage_mitohelper, Domain_mito, Phylum_mito, Class_mito, Order_mito, Family_mito, Genus_mito, Species_mito)) %>%
-  summarise(across(where(is.numeric), sum),
-            .groups = "drop")
-
-# clean taxonomic hierarchy - don't need this
-asv.calemp <- collapsed %>%
-  separate(
-  ConsensusLineage_combined,
-  into = c("Domain", "Phylum", "Class", "Order",
-           "Family", "Genus", "Species"),
-  sep = ";\\s*",
-  remove = FALSE
-) %>%
-  mutate(
-    across(
-      c(Domain, Phylum, Class, Order, Family, Genus, Species),
-      ~ sub("^[a-z]__", "", .x)
-    )
-  )
-
 # how many made it to family level
 
-total_reads <- asv.calemp %>%
+total_reads <- comb_final %>%
   select(where(is.numeric)) %>%
   unlist() %>%
   sum(na.rm = TRUE)
 
-assigned_reads <- asv.calemp %>%
-  filter(!is.na(Family), Family != "") %>%
+assigned_reads <- comb_final %>%
+  filter(!is.na(Family_conv), Family_conv != "") %>%
   select(where(is.numeric)) %>%
   unlist() %>%
   sum(na.rm = TRUE)
 
-perc_assigned_fam <- (assigned_reads/total_reads) *100
+perc_assigned_fam <- (assigned_reads/total_reads) *100 # 95.89% of assigned reads made it to family level
 
 # what percent of reads made it to species level
-total_reads <- asv.calemp %>%
+total_reads <- comb_final %>%
   select(where(is.numeric)) %>%
   unlist() %>%
   sum(na.rm = TRUE)
 
-assigned_reads_sp <- asv.calemp %>%
-  filter(!is.na(Species), Species != "") %>%
+assigned_reads_sp <- comb_final %>%
+  filter(!is.na(Species_conv), Species_conv != "") %>%
   select(where(is.numeric)) %>%
   unlist() %>%
   sum(na.rm = TRUE)
 
-perc_assigned_spec <- (assigned_reads_sp/total_reads) *100
+perc_assigned_spec <- (assigned_reads_sp/total_reads) *100 # 63.09% of assigned reads made it to species
 
 # pivot long 
-abundance_long <- asv.calemp %>% 
+abundance_long <- comb_final %>% 
   pivot_longer(
     cols = where(is.numeric),
     names_to = "sample_id",
@@ -498,9 +275,7 @@ sample_metadata <- abundance_long %>%
   )) %>%
   mutate(estuary = case_when(region == "NC" & estuary == "BOL" ~ "BOLINAS",
                              region == "SC" & estuary == "BOL" ~ "BOLSA",
-                             TRUE ~ estuary)) %>%
-mutate(region = case_when(region == "C" ~ "CC",
-                          TRUE ~ region))
+                             TRUE ~ estuary))
 
 # attach metadata to abundance table
 abundance_table <- abundance_long %>%
@@ -510,15 +285,8 @@ abundance_table <- abundance_long %>%
          relative_reads = reads/total_reads) %>%
   ungroup()
 
-# taxonomic barplots
-# why is the math not mathing
-table <- abundance_table %>%
-  filter(sample_id == "CC.MOR_2_241015_SR_1") %>%
-  sum(reads)
-table
 
-
-# let's start with one estuary
+#### Taxonomic barplot ----
 # function to loop through estuaries
 
 ##  color palette
@@ -546,19 +314,19 @@ Cxcx_ext <- c("#FFCC99","green3", "chartreuse3", "#333300", "#000000",
 
 all_species <- abundance_long %>%
   filter(
-    Domain == "Unassigned" |
-      (!is.na(Species) & Species != "")
+    Domain_conv == "Unassigned" |
+      (!is.na(Species_conv) & Species_conv != "")
   ) %>%
   mutate(
-    Species = if_else(
-      Domain == "Unassigned",
+    Species_conv = if_else(
+      Domain_conv == "Unassigned",
       "Unassigned",
-      Species
+      Species_conv
     )
   ) %>%
-  distinct(Species) %>%
-  arrange(Species) %>%
-  pull(Species)
+  distinct(Species_conv) %>%
+  arrange(Species_conv) %>%
+  pull(Species_conv)
 species_only <- all_species[all_species != "Unassigned"]
 
 species_colors <- setNames(
@@ -574,9 +342,9 @@ make_species_barplot <- function(estuary_name) {
   estuary_data <- abundance_table %>%
     filter(estuary == estuary_name, reads > 0) %>%
     mutate(
-      Species = case_when(Domain == "Unassigned" ~ "Unassigned",
-                          is.na(Species) | Species == "" ~ "Not assigned to species",
-                          TRUE ~ Species))
+      Species = case_when(Domain_conv == "Unassigned" ~ "Unassigned",
+                          is.na(Species_conv) | Species_conv == "" ~ "Not assigned to species",
+                          TRUE ~ Species_conv))
   
   # Order species by total reads within this estuary
   estuary_barplot <- estuary_data %>%
@@ -675,19 +443,19 @@ for (e in estuaries) {
 # family level barplots for each estuary
 all_families <- abundance_long %>%
   filter(
-    Domain == "Unassigned" |
-      (!is.na(Family) & Family != "")
+    Domain_conv == "Unassigned" |
+      (!is.na(Family_conv) & Family_conv != "")
   ) %>%
   mutate(
-    Species = if_else(
-      Domain == "Unassigned",
+    Family = if_else(
+      Domain_conv == "Unassigned",
       "Unassigned",
-      Family
+      Family_conv
     )
   ) %>%
-  distinct(Family) %>%
-  arrange(Family) %>%
-  pull(Family)
+  distinct(Family_conv) %>%
+  arrange(Family_conv) %>%
+  pull(Family_conv)
 
 # connect each family to a color
 family_only <- all_families[all_families != "Unassigned"]
@@ -705,9 +473,9 @@ make_family_barplot <- function(estuary_name) {
   estuary_data_fam <- abundance_table %>%
     filter(estuary == estuary_name, reads > 0) %>%
     mutate(
-      Species = case_when(Domain == "Unassigned" ~ "Unassigned",
-                          is.na(Family) | Family == "" ~ "Not assigned to family",
-                          TRUE ~ Family))
+      Family = case_when(Domain_conv == "Unassigned" ~ "Unassigned",
+                          is.na(Family_conv) | Family_conv == "" ~ "Not assigned to family",
+                          TRUE ~ Family_conv))
   
   # Order species by total reads within this estuary
   estuary_barplot_fam <- estuary_data_fam %>%
@@ -789,16 +557,7 @@ for (e in estuaries) {
   ggsave(filename = paste0("family_barplots/", e, "_family_barplot.png"), plot = family_plots[[e]],
          height = 6, width = 8, dpi = 400)}
 
-# write out species list 
-write.csv(all_species, here("processed", "species_lookup.csv"))
 
-# make species lookup table by region/ estuary
-species.lookup.est <- abundance_table %>%
-  filter(!is.na(Species)) %>%
-  distinct(region, estuary, Species) %>%
-  arrange(region, estuary, Species)
-
-write.csv(species.lookup.est, here("processed", "species_lookup_byestuary.csv"))
 
 ############################################
 # nMDS for each region for each region
@@ -1068,7 +827,300 @@ fish_seine_1 <- fish_seine %>%
                   sep = "-", remove = FALSE) %>%
   rename(Species = scientificname,
          station = stationno) %>%
+  mutate(estuary = case_when(region == "NC" & estuary == "BOL" ~ "BOLINAS",
+                             region == "SC" & estuary == "BOL" ~ "BOLSA",
+                             TRUE ~ estuary)) %>%
   filter(!is.na(Species), Species != "Not recorded")
+
+
+# Species lookup lists with standardized names - estuary, region, seine and eDNA taxonomic crosswalk
+# use taxize package and base crosswalk on most updated WoRMS taxonomic ids
+library(taxize)
+library(worrms)
+library(dplyr)
+library(purrr)
+library(tidyr)
+
+# make species lookup table by region/ estuary - eDNA
+species.lookup.est <- abundance_table %>%
+  filter(!is.na(Species)) %>%
+  distinct(region, estuary, Species) %>%
+  arrange(region, estuary, Species)
+
+edna_species <- abundance_table %>%
+  filter(!is.na(Species_conv), Species_conv != "", Species_conv != "NA") %>%
+  distinct(Species_conv) %>%
+  arrange(Species_conv) %>%
+  pull(Species_conv) 
+
+# species lookup table - 
+seine_species <- fish_seine_1 %>%
+  distinct(Species) %>%
+  pull(Species) %>% sort()
+
+# get correct names, AphiaID, and acceptance status
+worms_results <- map(
+  edna_species,
+  ~ tryCatch(
+    get_wormsid_(
+      sci_com = .x,
+      marine_only = FALSE,
+      fuzzy = FALSE,
+      accepted = FALSE
+    ),
+    error = function(e) NULL
+  )
+)
+
+library(tibble)
+
+worms_lookup <- map2_dfr(
+  worms_results,
+  edna_species,
+  function(result, original_name) {
+    
+    # Handle completely missing results
+    if (is.null(result) || length(result) == 0) {
+      return(tibble(
+        original_name = original_name,
+        AphiaID = NA_integer_,
+        scientificname = NA_character_,
+        authority = NA_character_,
+        status = NA_character_
+      ))
+    }
+    
+    # Extract nested tibble(s), removing NULL elements
+    result_tables <- result %>%
+      purrr::compact()
+    
+    # Handle results containing only NULL
+    if (length(result_tables) == 0) {
+      return(tibble(
+        original_name = original_name,
+        AphiaID = NA_integer_,
+        scientificname = NA_character_,
+        authority = NA_character_,
+        status = NA_character_
+      ))
+    }
+    
+    # Combine all returned matches
+    bind_rows(result_tables) %>%
+      mutate(original_name = original_name, .before = 1)
+  }
+)
+# Inspect name matching - eDNA
+# How many species were queried?
+length(edna_species)
+
+# How many original names are represented?
+n_distinct(worms_lookup$original_name)
+
+# How many matched?
+sum(!is.na(worms_lookup$AphiaID))
+
+# How many didn't match?
+sum(is.na(worms_lookup$AphiaID))
+
+# Status breakdown
+worms_lookup %>%
+  count(status) %>%
+  print() 
+
+# problem children
+problem_taxa_edna <- worms_lookup %>%
+  filter(status %in% c("unaccepted", "superseded combination", "junior homonym"))
+
+problem_taxa_edna
+
+# full record for problem children
+problem_record_edna <- map(
+  problem_taxa_edna$AphiaID,
+  ~ wm_record(.x)
+)
+
+names(problem_record_edna) <- problem_taxa_edna$original_name
+
+# build a corrections table 
+problem_corrections <- map2_dfr(
+  problem_record_edna,
+  names(problem_record_edna),
+  function(record, original_name) {
+    
+    if (is.null(record)) {
+      return(tibble(
+        original_name = original_name,
+        valid_AphiaID = NA_integer_,
+        valid_name = NA_character_,
+        record_status = NA_character_
+      ))
+    }
+    
+    tibble(
+      original_name = original_name,
+      valid_AphiaID = record$valid_AphiaID,
+      valid_name = record$valid_name,
+      record_status = record$status
+    )
+  }
+)
+
+problem_corrections
+
+# now build out the same type of list for seine fish names
+# get correct names, AphiaID, and acceptance status
+# SEINE ----
+worms_results_seine <- map(
+  seine_species,
+  ~ tryCatch(
+    get_wormsid_(
+      sci_com = .x,
+      marine_only = FALSE,
+      fuzzy = FALSE,
+      accepted = FALSE
+    ),
+    error = function(e) NULL
+  )
+)
+
+library(tibble)
+
+worms_lookup_seine <- map2_dfr(
+  worms_results_seine,
+  seine_species,
+  function(result, original_name) {
+    
+    # Handle completely missing results
+    if (is.null(result) || length(result) == 0) {
+      return(tibble(
+        original_name = original_name,
+        AphiaID = NA_integer_,
+        scientificname = NA_character_,
+        authority = NA_character_,
+        status = NA_character_
+      ))
+    }
+    
+    # Extract nested tibble(s), removing NULL elements
+    result_tables <- result %>%
+      purrr::compact()
+    
+    # Handle results containing only NULL
+    if (length(result_tables) == 0) {
+      return(tibble(
+        original_name = original_name,
+        AphiaID = NA_integer_,
+        scientificname = NA_character_,
+        authority = NA_character_,
+        status = NA_character_
+      ))
+    }
+    
+    # Combine all returned matches
+    bind_rows(result_tables) %>%
+      mutate(original_name = original_name, .before = 1)
+  }
+)
+# Inspect name matching - seine
+# How many species were queried?
+length(seine_species)
+
+# How many original names are represented?
+n_distinct(worms_lookup_seine$original_name)
+
+# How many matched?
+sum(!is.na(worms_lookup_seine$AphiaID))
+
+# How many didn't match?
+sum(is.na(worms_lookup_seine$AphiaID))
+
+# Status breakdown
+worms_lookup_seine %>%
+  count(status) %>%
+  print() 
+
+# problem children - seine
+problem_taxa_seine <- worms_lookup_seine %>%
+  filter(status %in% c("unaccepted", "superseded combination", "junior homonym", "junior subjective synonym"))
+
+problem_taxa_seine
+
+# full record for problem children
+problem_record_seine <- map(
+  problem_taxa_seine$AphiaID,
+  ~ wm_record(.x)
+)
+
+names(problem_record_seine) <- problem_taxa_seine$original_name
+
+# build seine problem corrections table
+problem_corrections_seine <- map2_dfr(
+  problem_record_seine,
+  names(problem_record_seine),
+  function(record, original_name) {
+    
+    if (is.null(record)) {
+      return(tibble(
+        original_name = original_name,
+        valid_AphiaID = NA_integer_,
+        valid_name = NA_character_,
+        record_status = NA_character_
+      ))
+    }
+    
+    tibble(
+      original_name = original_name,
+      valid_AphiaID = record$valid_AphiaID,
+      valid_name = record$valid_name,
+      record_status = record$status
+    )
+  }
+)
+
+# correct taxonomic names in each respective dataset
+# start with eDNA
+edna_corrections <- problem_corrections %>%
+  filter(!is.na(valid_name)) %>%
+  distinct(original_name, .keep_all = TRUE) %>%
+  select(
+    Species_conv = original_name,
+    valid_name
+  )
+
+abundance_table <- abundance_table %>%
+  mutate(Species_original = Species_conv) %>%
+  left_join(
+    edna_corrections,
+    by = "Species_conv"
+  ) %>%
+  mutate(
+    Species_conv = coalesce(valid_name, Species_conv)
+  ) %>%
+  select(-valid_name)
+
+# now correct names with accepted WoRMS status in seine data
+
+seine_corrections <- problem_corrections_seine %>%
+  filter(!is.na(valid_name)) %>%
+  distinct(original_name, .keep_all = TRUE) %>%
+  select(
+    Species = original_name,
+    valid_name
+  )
+
+fish_seine_1 <- fish_seine_1 %>%
+  mutate(Species_original = Species) %>%
+  left_join(
+    seine_corrections,
+    by = "Species"
+  ) %>%
+  mutate(
+    Species = coalesce(valid_name, Species)
+  ) %>%
+  select(-valid_name)
+
+
 
 # convert fish to presence-absence
 fish_presence <- fish_seine_1 %>%
@@ -1076,47 +1128,42 @@ fish_presence <- fish_seine_1 %>%
   summarise(fish_detected = 1, .groups = "drop") %>%
   mutate(across(c(region, estuary, Species), str_trim))
 
+# fish presence at genus level
+fish_presence_genus <- fish_presence %>%
+  mutate(Genus = sub(" .*", "", Species)) %>%
+  group_by(region, estuary, Genus) %>%
+  summarise(fish_detected = max(fish_detected), .groups = "drop")
+  
 
 # convert eDNA data to presence-absence
 eDNA_presence <- abundance_table %>%
-  filter(reads > 0, !is.na(Species), Species !="", Species != "Unassigned") %>%
-  distinct(region, estuary, Species) %>%
+  filter(reads > 0, !is.na(Species_conv), Species_conv !="", Species_conv != "Unassigned") %>%
+  distinct(region, estuary, Species_conv) %>%
   mutate(eDNA_detected = 1) %>%
-  mutate(across(c(region, estuary, Species), str_trim))
+  mutate(across(c(region, estuary, Species_conv), str_trim)) %>% rename(Species = Species_conv)
 
+# convert eDNA to presence-absence at genus level
+eDNA_presence_genus <- abundance_table %>%
+  filter(reads > 0, !is.na(Genus_conv), Genus_conv !="", Genus_conv != "Unassigned") %>%
+  distinct(region, estuary, Genus_conv) %>%
+  mutate(eDNA_detected = 1) %>%
+  mutate(across(c(region, estuary, Genus_conv), str_trim)) %>% rename(Genus = Genus_conv)
 
 # what fish were ONLY detected using eDNA (were not found in a seine anywhere)?
 fish_lookup <- fish_seine_1 %>% distinct(Species) #72
-eDNA_lookup <- abundance_table %>% distinct(Species) %>% arrange(Species)
+eDNA_lookup <- abundance_table %>% distinct(Species_conv) %>% arrange(Species_conv)
 
-eDNA_unique_sp <- eDNA_lookup %>%
-  anti_join(fish_lookup, by = "Species")
-eDNA_unique_sp
+# what fish were detected by methods by region and estuary
+seine_lookup_est <- fish_seine_1 %>% group_by(region, estuary, Species) %>% distinct(Species) %>% arrange(estuary)
+seine_lookup_est
 
-eDNA_seine_overlap <- fish_lookup %>%
-  left_join(eDNA_lookup, by = "Species")
-eDNA_seine_overlap
+eDNA_lookup_est <- abundance_table %>% group_by(region, estuary, Species_conv) %>% filter(!region %in% c("EB", "EB9")) %>%
+  distinct(Species_conv) %>% arrange(estuary) %>% rename(Species = Species_conv)
+eDNA_lookup_est
 
-eDNA_review <- eDNA_lookup %>% filter(Species %in% fish_lookup)
-
-# ID fish that occur in both  datasets but don't overlap in estuaries
-fish_mismatch <- 
-  eDNA_presence %>%
-  inner_join(
-    fish_presence,
-    by = "Species",
-    suffix = c("_eDNA", "_fish")
-  ) %>%
-  filter(
-    region_eDNA != region_fish |
-      estuary_eDNA != estuary_fish
-  ) %>%
-  select(
-    Species,
-    region_eDNA, estuary_eDNA,
-    region_fish, estuary_fish
-  ) %>%
-  distinct()
+# write out csvs with both seine and eDNA lookup lists 
+write.csv(seine_lookup_est, here("processed", "seine_lookup_byestuary.csv"))
+write.csv(eDNA_lookup_est, here("processed", "eDNA_lookup_byestuary.csv"))
 
 # fish collection timepoints
 fish_seine_2 <- fish_seine_1 %>%
@@ -1136,7 +1183,7 @@ comparison <- full_join(eDNA_presence, fish_presence,
                         by = c("region", "estuary", "Species")) %>%
   mutate(eDNA_detected = replace_na(eDNA_detected, 0),
          fish_detected = replace_na(fish_detected, 0)) %>%
-  filter(!str_detect(Species, regex("unknown|juvenile|\\bsp\\b|Argopecten|Navanax|Canis|Homo|Bos tarurus|Cerithidea|Laevicardium|Macoma|Venerupis|NA|Mytilus|Carcinus|Melampus", 
+  filter(!str_detect(Species, regex("unknown|juvenile|\\bsp\\b|Argopecten|Navanax|Canis|Hemigrapsus|Homo|Bos tarurus|Cerithidea|Laevicardium|Macoma|Venerupis|NA|Mytilus|Carcinus|Melampus", 
                                     ignore_case = TRUE)))
 
 # 
@@ -1150,11 +1197,27 @@ comparison_1 <- comparison %>%
 # write out .csv of this comparative df for team
 write.csv(comparison_1, here("processed", "edna_vs_seine_comparison_total.csv"))
 
+
+### genus- level comparison
+comparison_genus <- full_join(eDNA_presence_genus, fish_presence_genus, 
+                                        by = c("region", "estuary", "Genus")) %>%
+  mutate(eDNA_detected = replace_na(eDNA_detected, 0),
+         fish_detected = replace_na(fish_detected, 0)) %>%
+  filter(!str_detect(Genus, regex("unknown|juvenile|\\bsp\\b|Argopecten|Navanax|Canis|Homo|Bos|Cerithidea|Laevicardium|Macoma|Venerupis|NA|Mytilus|Carcinus|Melampus", 
+                                    ignore_case = TRUE)))
+
+comparison_1_genus <- comparison_genus %>%
+  mutate(method = case_when(
+    eDNA_detected == 1 & fish_detected ==1 ~ "Both",
+    eDNA_detected == 1 & fish_detected == 0 ~ "eDNA only",
+    eDNA_detected == 0 & fish_detected == 1 ~ "Fish seine only",
+    TRUE ~ NA_character_))
+
 # heatmap of presence-absence in each season in each region
 region_data <- comparison_1 %>% filter(estuary %in% c("GOL", "VEN", "MAL"))
 region_data <- comparison_1 %>% filter(estuary %in% c("SEAL", "BOL", "NEW", "BAT"))
 region_data <- comparison_1 %>% filter(region == "NC")
-region_data <- comparison_1 %>% filter(region == "CC")
+region_data <- comparison_1_genus %>% filter(region == "CC")
 
 heatmap_plot <- ggplot(region_data, aes( x = estuary, y = Species, fill = method)) +
          geom_tile(color = "white") + 
@@ -1182,16 +1245,18 @@ heatmap_plot
 ggsave(here("figures", "heatmap_SC1.jpg"), heatmap_plot,  
        height = 8, width = 6, dpi = 1000)
 
+
  # make heatmap better
 
 region_data <- comparison_1 %>% filter(estuary %in% c("GOL", "VEN", "MAL"))
 region_data <- comparison_1 %>% filter(estuary %in% c("SEAL", "BOL", "NEW", "BAT"))
-region_data <- comparison_1 %>% filter(region == "NC")
 region_data <- comparison_1 %>% filter(region == "CC")
+region_data <- comparison_1_genus %>% filter(region == "CC")
 region_data <- comparison_1 %>% filter(region == "SC")
 
 library(ComplexHeatmap)
 library(circlize)
+# toggle back between Genus and Species - don't overwrite the plot
 
 heatmap_data <- region_data %>%
   select(Species, estuary, method) %>%
@@ -1241,7 +1306,7 @@ heatmap_betterplot <- Heatmap(
 )
 
 png(
-  here("figures", "heatmaps", "heatmap_SC.png"),
+  here("figures", "heatmaps", "heatmap_CC.png"),
   width = 6,
   height = 8,
   units = "in",
@@ -1278,6 +1343,8 @@ seine_abun_trim <- seine_abun %>%
 
 seine_abun_trim
 
+seine_abun_GA <- seine_abun_trim %>% filter(Species == "Gastrosteus aculeatus")
+
 # eDNA was not taken side-by-side with seines - combine replicates to get total reads of each species
 # recorded at each station
 eDNA_reads <- abundance_table %>%
@@ -1288,35 +1355,644 @@ eDNA_reads <- abundance_table %>%
 
 eDNA_reads  
 
+eDNA_reads_GA <- eDNA_reads %>% filter(Species == "Gastrosteus aculeatus")
+
 eDNA_reads$station <- as.integer(eDNA_reads$station)
 
 # combine datasets
 read_abun_data <- seine_abun_trim %>% left_join(eDNA_reads, by = c("region", "estuary", "station", "season", "Species"))
 read_abun_data
 
-
+library(ggpubr)
 
 # plot abundance vs reads for each taxa
-abun_reads_plot <- ggplot(read_abun_data, aes(x = Abundance, y = Reads)) +
-  geom_point(alpha = 0.7, na.rm = TRUE) +
+abun_reads_plot <- read_abun_data %>%
+  filter(Species %in% c("Gasterosteus aculeatus", "Eucyclogobius newberryi", "Clevelandia ios")) %>%
+  ggplot(aes(x = Abundance, y = Reads)) +
+  geom_point(alpha = 0.7, size = 4, na.rm = TRUE) +
   geom_smooth(method = "lm", se = TRUE, na.rm = TRUE) +
   facet_wrap(~commonname, scales = "free", ncol = 4) +
   scale_x_continuous(trans = "log1p") +
   scale_y_continuous(trans = "log1p") +
+  stat_cor(
+    method = "pearson",
+    label.x.npc = "left",
+    label.y.npc = "bottom",
+    r.digits = 3,
+    p.accuracy = 0.0001,
+    size = 4,
+    aes(label = paste(after_stat(rr.label),
+                      after_stat(p.label),
+                      sep = "~`,`~"))
+  ) +
   theme_bw() +
+  theme(strip.text = element_text(size = 18),
+        axis.title = element_text(size = 20),
+        axis.text.x = element_text(size = 14, hjust = 1, angle = 45),
+        axis.text.y = element_text(size = 16)) +
   labs(
     x = "Fish abundance (log 1 + x)",
     y = "eDNA reads (log 1 + x)"
   )
 abun_reads_plot
-ggsave(here("figures", "reads_vs_abundance.jpg"), abun_reads_plot, 
-       height = 8, width = 8, dpi = 500)
+
+ggsave(here("figures", "reads_vs_abundance_three.jpg"), abun_reads_plot, 
+       height = 8, width = 14, dpi = 500)
+
+#ggsave(here("figures", "reads_vs_abundance.jpg"), abun_reads_plot, 
+ #      height = 8, width = 8, dpi = 500)
 
 #############################################
 # INVASIVES - map 
 
 
+
+
 ##############################################
+# Venn Diagrams
+library(eulerr)
+library(ggplotify)
+
+comparison_2 <- comparison_1 %>% filter(region %in% c("SC", "CC", "NC")) 
+
+
+edna_set <- comparison_2 %>%
+  filter(region =="CC", eDNA_detected == 1) %>%
+  pull(Species) %>%
+  unique()
+
+seine_set <- comparison_2 %>%
+  filter(region =="CC", fish_detected == 1) %>%
+  pull(Species) %>%
+  unique()
+
+# Check the actual numbers
+length(edna_set)
+length(seine_set)
+length(intersect(edna_set, seine_set))
+
+fit <- euler(list(
+  "eDNA" = edna_set,
+  "Fish seine" = seine_set
+))
+
+venn_diagram <- plot(
+  fit,
+  fills = list(
+    fill = c("#2878B5", "#D98B35"),
+    alpha = 0.65
+  ),
+  edges = list(col = "grey30"),
+  labels = list(font = 2, fontsize = 20),
+  quantities = list(
+    type = "counts",
+    fontsize = 20,
+    font = 2
+  ),
+  main = "12S eDNA metabarcoding vs. fish seine - Central Coast"
+)
+
+venn_diagram
+
+png(here("figures", "venn_diagram_CC.png"), width = 2000, height = 1000, res = 200)
+plot(venn_diagram)
+dev.off()
+
+
+# heatmap of ADLC only
+
+
+
+heatmap_ADLC <- comparison_2 %>%
+  filter(estuary == "ADLC") %>%
+  ggplot(aes(x = method, y = reorder(Species, method), fill = method)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_manual(values = c(
+    "eDNA only" = "#3B9AB2",
+    "Both" = "#F21A00",
+    "Fish seine only" = "#78B7C5"
+  )) +
+  labs(
+    title = "Species Detection by Method",
+    subtitle = "ADLC Estuary",
+    x = "Detection Method",
+    y = "Species",
+    fill = "Method"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(face = "italic", size = 9),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank()
+  )
+heatmap_ADLC
+
+##############################################
+# Estuary type (lagoonal vs open)
+estuary_info <- fish_seine_1 %>%
+  select(region, estuary, estuaryname, estuaryclass, mpastatus, estuarytype) %>%
+  mutate(estuary = case_when(
+    region == "SC" & estuary == "BOL" ~ "BOLSA",
+    region == "NC" & estuary == "BOL" ~ "BOLINAS",
+    TRUE ~ estuary
+  )) %>%
+  distinct()
+
+estuary_info
+
+# fish seine nMDS and PERMANOVA
+fish_abun_table <- fish_seine_1 %>%
+  mutate(Genus = sub(" .*", "", Species)) %>%
+  mutate(sample_id = cur_group_id(),
+         .by = c(estuary, season, station)) 
+
+# give each sample id a unique number so we get rid of duplicates
+fish_abun_table <- fish_abun_table %>%
+  group_by(region, estuary, season, station) %>%
+  mutate(sample_id = cur_group_id()) %>%
+  ungroup()
+
+
+community_fish <- fish_abun_table %>%
+  filter(!is.na(Genus)) %>%
+  filter(!region %in% c("EB", "EB9")) %>%
+  group_by(sample_id, Genus) %>%
+  summarise(
+    abundance = sum(abundance[abundance >= 0], na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(presence = if_else(abundance > 0, 1, 0))
+
+fish_metadata <- fish_abun_table %>%
+  filter(!region %in% c("EB", "EB9")) %>%
+  select(
+    sample_id,
+    region,
+    estuary,
+    estuaryclass,
+    mpastatus,
+    estuarytype,
+    season
+  ) %>%
+  distinct()
+
+# fish community matrix and nMDS
+comm_matrix_fish <- community_fish %>%
+  group_by(sample_id, Genus) %>%
+  summarise(
+    abundance = sum(abundance, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = Genus,
+    values_from = abundance,
+    values_fill = 0
+  ) %>%
+  column_to_rownames("sample_id") %>%
+  as.data.frame()
+
+# remove zero rows (shouldn't be any)
+comm_matrix_fish <- comm_matrix_fish[
+  rowSums(comm_matrix_fish) > 0,
+  ,
+  drop = FALSE
+]
+
+#make sure all those sample ids are of the same class
+metadata_nmds <- fish_metadata %>%
+  mutate(sample_id = as.character(sample_id)) %>%
+  distinct(sample_id, .keep_all = TRUE) %>%
+  filter(sample_id %in% rownames(comm_matrix_fish)) %>%
+  slice(match(rownames(comm_matrix_fish), sample_id))
+
+# run nmds - stress = 0.15 (acceptable)
+set.seed(123)
+
+nmds_fish <- metaMDS(
+  comm_matrix_fish,
+  distance = "bray",
+  k = 2,
+  trymax = 100,
+  autotransform = FALSE,
+  wascores = TRUE
+)
+
+nmds_scores <- as.data.frame(
+  scores(nmds_fish, display = "sites")
+) %>%
+  rownames_to_column("sample_id") %>%
+  left_join(metadata_nmds, by = "sample_id")
+
+cols <- c(
+  "NC" = "darkgreen",
+  "CC" = "cornflowerblue",
+  "SC" = "deeppink"
+)
+
+nmds_plot <- ggplot(
+  nmds_scores,
+  aes(
+    x = NMDS1,
+    y = NMDS2,
+    colour = region,
+    shape = estuarytype
+  )
+) +
+  geom_point(size = 4, alpha = 0.8) +
+  scale_color_manual(values = cols) +
+  theme_classic() +
+  labs(
+    colour = "Region",
+    shape = "Estuary class"
+  )
+
+print(nmds_plot)
+
+ggsave(here("figures", "nmds_estuarytype_seine.jpg"), 
+       nmds_plot, height = 6, width = 8, dpi = 400)
+
+# PERMANOVA
+bray_dist <- vegdist(comm_matrix_fish, method = "bray")
+
+
+permanova <- adonis2(
+  comm_matrix_fish ~ estuaryclass + estuarytype + region,
+  data = fish_metadata,
+  method = "bray",
+  permutations = 999,
+  by = "margin"
+)
+
+permanova
+
+# eDNA nMDS and PERMANOVA - pool replicates at each station
+abun_table_est <- abundance_table %>% left_join(estuary_info, by = "estuary")
+
+#############################
+pooled <- abun_table_est %>%
+  filter(!is.na(Genus_conv)) %>%
+  filter(!region.x %in% c("EB", "EB9")) %>%
+  group_by(region.x, estuary, station, season) %>%
+  mutate(sample_id = cur_group_id()) %>%
+  ungroup()
+
+
+community <- pooled %>%
+  group_by(sample_id, region.x, estuary, station, season, Genus_conv) %>%
+  summarise(reads = sum(reads), .groups = "drop") %>%
+  mutate(presence = as.integer(reads > 0)) %>%
+  select(-reads) %>%
+  pivot_wider(
+    names_from = Genus_conv,
+    values_from = presence,
+    values_fill = 0
+  )
+
+
+metadata <- pooled %>%
+  select(sample_id, region.x, estuary, station, season,
+         estuaryclass, mpastatus, estuarytype) %>%
+  distinct(sample_id, .keep_all = TRUE)
+
+
+comm_matrix <- community %>%
+  select(-sample_id, -region.x, -estuary, -station, -season) %>%
+  as.data.frame()
+
+rownames(comm_matrix) <- community$sample_id
+
+
+nmds <- metaMDS(
+  comm_matrix,
+  distance = "jaccard",
+  binary = TRUE,
+  k = 2,
+  trymax = 100,
+  autotransform = FALSE
+)
+
+
+nmds_scores <- as.data.frame(scores(nmds, display = "sites")) %>%
+  rownames_to_column("sample_id") %>%
+  mutate(sample_id = as.integer(sample_id)) %>%
+  left_join(metadata, by = "sample_id")
+
+cols <- c(
+  "NC" = "darkgreen",
+  "CC" = "cornflowerblue",
+  "SC" = "deeppink"
+)
+
+nmds_plot <- ggplot(
+  nmds_scores,
+  aes(
+    x = NMDS1,
+    y = NMDS2,
+    colour = region.x,
+    shape = estuarytype
+  )
+) +
+  geom_point(size = 4, alpha = 0.8) +
+  theme_classic() +
+  scale_color_manual(values = cols) +
+  labs(
+    title = "eDNA community composition",
+    colour = "Region",
+    shape = "Estuary Open/Closed status"
+  )
+
+print(nmds_plot)
+
+
+
+ggsave(here("figures", "nmds_estuarytype_pooled.jpg"), 
+       nmds_plot, height = 6, width = 8, dpi = 400)
+
+# PERMANOVA
+bray_dist <- vegdist(comm_matrix, method = "jaccard")
+
+metadata_clean <- metadata %>%
+  filter(
+    !is.na(estuaryclass),
+    !is.na(mpastatus),
+    !is.na(region.x),
+    !is.na(estuarytype)
+  )
+
+comm_matrix_clean <- comm_matrix[
+  metadata_clean$sample_id,
+]
+
+permanova <- adonis2(
+  comm_matrix_clean ~ estuaryclass + estuarytype + region.x,
+  data = metadata_clean,
+  method = "bray",
+  permutations = 999,
+  by = "margin"
+)
+
+permanova
+
+##############################################
+# Species of special concern
+fish_info <- read.csv(here("processed", "Fish-index-info.csv")) # info from expert panel on fish life and guild info
+
+trait_comparison <- comparison_1 %>%
+  left_join(fish_info, by = c("Species" = "Scientific.name"))
+
+species_summary <- trait_comparison %>%
+  group_by(Species) %>%
+  summarise(
+    eDNA_detected = max(eDNA_detected, na.rm = TRUE),
+    fish_detected = max(fish_detected, na.rm = TRUE),
+    Ecological.category = first(Ecological.categories),
+    .groups = "drop"
+  )
+
+ecological_summary <- species_summary %>%
+  group_by(Ecological.category) %>%
+  summarise(
+    Total_species = n(),
+    eDNA_detections = sum(eDNA_detected),
+    Seine_detections = sum(fish_detected),
+    Both_methods = sum(eDNA_detected == 1 & fish_detected == 1),
+    eDNA_only = sum(eDNA_detected == 1 & fish_detected == 0),
+    Seine_only = sum(eDNA_detected == 0 & fish_detected == 1),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    eDNA_percent = round(eDNA_detections / Total_species * 100, 1),
+    Seine_percent = round(Seine_detections / Total_species * 100, 1)
+  ) %>%
+  arrange(desc(Total_species))
+
+
+write.csv(ecological_summary, here("processed", "ecological.summary.csv"))
+# picks up more marine (70% vs 45%) and freshwater taxa
+
+# create table of species with microhabitat associations
+species_summary_microhabitat <- trait_comparison %>%
+  group_by(Species) %>%
+  summarise(
+    eDNA_detected = max(eDNA_detected, na.rm = TRUE),
+    fish_detected = max(fish_detected, na.rm = TRUE),
+    Micro.habitat.association = first(Micro.habitat.association),
+    .groups = "drop"
+  )
+
+ecological_summary_microhabitat <- species_summary_microhabitat %>%
+  group_by(Micro.habitat.association) %>%
+  summarise(
+    Total_species = n(),
+    eDNA_detections = sum(eDNA_detected),
+    Seine_detections = sum(fish_detected),
+    Both_methods = sum(eDNA_detected == 1 & fish_detected == 1),
+    eDNA_only = sum(eDNA_detected == 1 & fish_detected == 0),
+    Seine_only = sum(eDNA_detected == 0 & fish_detected == 1),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    eDNA_percent = round(eDNA_detections / Total_species * 100, 1),
+    Seine_percent = round(Seine_detections / Total_species * 100, 1)
+  ) %>%
+  arrange(desc(Total_species))
+
+# picks up more hard structure assoicated taxa
+
+# let's look at trophic level
+species_summary_trophic <- trait_comparison %>%
+  group_by(Species) %>%
+  summarise(
+    eDNA_detected = max(eDNA_detected, na.rm = TRUE),
+    fish_detected = max(fish_detected, na.rm = TRUE),
+    Trophic.level = first(Trophic.level),
+    .groups = "drop"
+  )
+
+ecological_summary_trophic <- species_summary_trophic %>%
+  group_by(Trophic.level) %>%
+  summarise(
+    Total_species = n(),
+    eDNA_detections = sum(eDNA_detected),
+    Seine_detections = sum(fish_detected),
+    Both_methods = sum(eDNA_detected == 1 & fish_detected == 1),
+    eDNA_only = sum(eDNA_detected == 1 & fish_detected == 0),
+    Seine_only = sum(eDNA_detected == 0 & fish_detected == 1),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    eDNA_percent = round(eDNA_detections / Total_species * 100, 1),
+    Seine_percent = round(Seine_detections / Total_species * 100, 1)
+  ) %>%
+  arrange(desc(Total_species))
+
+View(ecological_summary_trophic)
+
+##############################################
+
+# overview heatmap of taxa by ecological category
+library(dplyr)
+library(tidyr)
+library(ComplexHeatmap)
+library(circlize)
+library(grid)
+
+heatmap_data <- trait_comparison %>%
+  mutate(
+    Detection = case_when(
+      eDNA_detected == 1 & fish_detected == 1 ~ "Both",
+      eDNA_detected == 1 & fish_detected == 0 ~ "eDNA only",
+      eDNA_detected == 0 & fish_detected == 1 ~ "Seine only",
+      TRUE ~ "Neither"
+    )
+  )
+
+
+heatmap_data <- heatmap_data %>%
+  mutate(
+    detection_value = case_when(
+      Detection == "Neither" ~ 0,
+      Detection == "eDNA only" ~ 1,
+      Detection == "Seine only" ~ 2,
+      Detection == "Both" ~ 3
+    )
+  )
+
+heatmap_matrix <- heatmap_data %>%
+  select(Species, estuary, detection_value) %>%
+  distinct() %>%
+  pivot_wider(
+    names_from = estuary,
+    values_from = detection_value,
+    values_fill = 0
+  ) %>%
+  column_to_rownames("Species") %>%
+  as.matrix()
+
+species_metadata <- heatmap_data %>%
+  select(
+    Species,
+    Detection,
+    Ecological.categories,
+    Trophic.level,
+    Micro.habitat.association
+  ) %>%
+  distinct() %>%
+  group_by(Species) %>%
+  slice(1) %>%
+  ungroup()
+
+species_metadata <- species_metadata %>%
+  slice(match(rownames(heatmap_matrix), Species))
+
+rownames(species_metadata) <- species_metadata$Species
+
+estuary_metadata <- heatmap_data %>%
+  select(estuary, region) %>%
+  distinct() %>%
+  arrange(region, estuary) %>%
+  as.data.frame()
+
+rownames(estuary_metadata) <- estuary_metadata$estuary
+
+estuary_metadata <- estuary_metadata[colnames(heatmap_matrix), ]
+
+detection_colours <- c(
+  "0" = "white",
+  "1" = "#3333FF",
+  "2" = "#33FF33",
+  "3" = "#000033"
+)
+
+
+region_colours <- c(
+  "NC" = "darkgreen",
+  "CC" = "cornflowerblue",
+  "SC" = "deeppink"
+)
+
+
+
+eco_levels <- unique(na.omit(species_metadata$Ecological.categories))
+
+eco_colours <- setNames(
+  colorRampPalette(
+    c("grey20", "darkolivegreen", "#E34A33", "#B30000")
+  )(length(eco_levels)),
+  eco_levels
+)
+
+top_ha <- HeatmapAnnotation(
+  Region = estuary_metadata$region,
+  col = list(
+    Region = region_colours
+  )
+)
+
+right_ha <- rowAnnotation(
+  Ecological.category = species_metadata$Ecological.categories,
+  col = list(
+    Ecological.category = eco_colours
+  )
+)
+
+
+
+ht <- Heatmap(
+  heatmap_matrix ,
+  
+  name = "Detection",
+  
+  col = detection_colours,
+  
+  #top_annotation = top_ha,
+  right_annotation = right_ha,
+  
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  
+  row_split = species_metadata$Ecological.categories,
+  
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  
+  row_names_gp = gpar(fontsize = 7),
+  column_names_gp = gpar(fontsize = 9),
+  
+  column_names_rot = 45,
+  
+  column_title = "Fish detections across California estuaries",
+  row_title = "Fish species",
+  
+  border = TRUE,
+  
+  heatmap_legend_param = list(
+    at = 0:3,
+    labels = c(
+      "Neither",
+      "eDNA only",
+      "Seine only",
+      "Both"
+    )
+  )
+)
+
+draw(ht)
+
+png(
+  here("figures", "heatmaps", "heatmap_EcoCat.png"),
+  width = 10,
+  height = 12,
+  units = "in",
+  res = 1000
+)
+
+draw(ht)
+
+dev.off()
+
+
+###############################################
 # stats
 head(abundance_table)
 

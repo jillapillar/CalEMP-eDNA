@@ -1,0 +1,10 @@
+"","Ecological.category","Total_species","eDNA_detections","Seine_detections","Both_methods","eDNA_only","Seine_only","eDNA_percent","Seine_percent"
+"1",NA,27,20,7,0,20,7,74.1,25.9
+"2","marine",25,21,8,4,17,4,84,32
+"3","estuarine resident",13,11,11,9,2,2,84.6,84.6
+"4","marine migrant",11,6,10,5,1,5,54.5,90.9
+"5","freshwater (brackish)",6,3,6,3,0,3,50,100
+"6","anadromous",2,1,1,0,1,1,50,50
+"7","",1,0,1,0,0,1,0,100
+"8","catadromous",1,1,1,1,0,0,100,100
+"9","estuarine resident; freshwater (brackish)",1,0,1,0,0,1,0,100
